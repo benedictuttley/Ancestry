@@ -1,15 +1,9 @@
 # Load Dependencies
 library(tidyr)
-# TODO: We have redundancy here
-# TODO: Set up GitHub
-packages <- c("tidyverse","dplyr", "ggplot2", "purrr", "RColorBrewer")
+packages <- c("tidyverse",  "RColorBrewer")
 install.packages(packages)
 lapply(packages, library, character.only = TRUE)
-getwd()
-v <- read.table("as.raw", header = TRUE,)
-prcomp(na.omit(v[7:10]))
-sum(diag(cov(na.omit(v[7:10]))))
-eigen(cov(na.omit(v[7:10])))$values
+
 # Core file paths
 eigenvalues_fp <- "../results/combined_alt.eigenval"
 eigenvectors_fp <- "../results/combined_alt.eigenvec"
@@ -18,14 +12,12 @@ population_fp <- paste("../data/ftp.1000genomes.ebi.ac.uk/all-1000g-phase3-chr",
 super_population_fp <- paste("../data/ftp.1000genomes.ebi.ac.uk/all-1000g-phas",
 "e3-chrall-mac5-v2.super-population", sep = "")
 
-# <<< MODULE 4 >>>, Step 2, Produce Scree plot
+# Produce Scree plot
 eigenvalues <- read.table(eigenvalues_fp, 
                           header = F, 
                           col.names = c("Eigenvalue")) %>% 
   as_tibble()
 
-print(eigenvalues)
-print(nrow(eigenvalues))
   scree_plot <- ggplot(data=eigenvalues, 
                        aes(x = seq(1, nrow(eigenvalues), 1), y = Eigenvalue)) +
     geom_point() +
@@ -37,16 +29,12 @@ print(nrow(eigenvalues))
       panel.background = element_blank(),
       panel.grid.major = element_blank(),
       panel.grid.minor = element_blank())
-  
-  scree_plot
   ggsave(file = "scree.png", plot = scree_plot, width=12, height=8)
+  
+  
+########## MODULE 5 START ##########
 
-
-
-# <<< MODULE 5 >>>, Step 1, PC mean and SD
-
-# Calculate the mean and SD for each PC in individuals tagged as GBR
-
+# STEP 1: Calculate the mean and SD for each PC in individuals tagged as GBR
 eigenvectors <- read.table(eigenvectors_fp, header = T) %>% 
   as_tibble()
 
@@ -59,13 +47,10 @@ super_population_codes <- read.table(super_population_fp, header = F,
   as_tibble()
 
 
-
-# 91 GBR tagged individuals identified
 GBR_tagged_individuals <- inner_join(eigenvectors,
                                      population_codes,
                                      by="FID") %>% 
   filter(POP=="GBR")
-
 
 # Generate inclusion criteria for a principal component (mean +/- 4SD)
 CalculateBounds <- function(pc_column) {
@@ -92,8 +77,8 @@ for (pc in colnames(pc_subtable)){
                                      !!as.symbol(pc) <= target$UpperBound,
                                      !!as.symbol(pc) >= target$LowerBound)
   }
-nrow(test_datset_eigenvectors)
-# <<< MODULE 5 >>>, Step 2, Create the .keep file
+
+# STEP 2: Create the .keep file
 # NOTE: You may need to manually change permissions on file to view it
 # TODO: Must be tab-delimited
 test_datset_eigenvectors %>% 
@@ -106,11 +91,10 @@ merged <- merge(eigenvectors, population_codes, by=c("FID", "IID"), all = T) %>%
   arrange(SUPPOP, POP)
 
 
-# <<< MODULE 5 >>>, Step 3, Plot the PCs
+# STEP 3: Plot the PCs
 core_colors <- c("Oranges", "Blues", "Greens", "Purples", "Reds")
 color_vector <- vector()
 
-# TODO: Unify these better
 # All ancestry
 all_ancestry <- merged %>% filter(POP != "test")
 # All test
@@ -127,7 +111,6 @@ all_pops <- all_ancestry %>%
   select(POP) %>% 
   distinct() %>% 
   as_vector()
-
 
 for(sup_pop in all_sup_pops){
   
@@ -178,17 +161,15 @@ GenerateAncestryPlot <- function(x, y){
 
 
 # Generate plots
-pc1_vs_pc2 <- GenerateAncestryPlot("PC1", "PC2") # PC1 vs PC2
-pc2_vs_pc3 <- GenerateAncestryPlot("PC2", "PC3") # PC2 vs PC3
-pc1_vs_pc3 <- GenerateAncestryPlot("PC1", "PC3") # PC1 vs PC3
+pc1_vs_pc2 <- GenerateAncestryPlot("PC1", "PC2")
+pc2_vs_pc3 <- GenerateAncestryPlot("PC2", "PC3")
+pc1_vs_pc3 <- GenerateAncestryPlot("PC1", "PC3")
 
 # Save plots
 ggsave(file = "pc1_vs_pc2.png", plot = pc1_vs_pc2, width=12, height=8)
 ggsave(file = "pc2_vs_pc3.png", plot = pc2_vs_pc3, width=12, height=8)
 ggsave(file = "pc1_vs_pc3.png", plot = pc1_vs_pc3, width=12, height=8)
+########## MODULE 5 END ##########
 
-# Current: 190 lines
-
-# TODO
 # <<<< MODULE 6 >>>
 # Keep intersect of GBR-like with identified as female
