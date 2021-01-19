@@ -5,8 +5,8 @@ install.packages(packages)
 lapply(packages, library, character.only = TRUE)
 
 # Core file paths
-eigenvalues_fp <- "../results/combined_alt.eigenval"
-eigenvectors_fp <- "../results/combined_alt.eigenvec"
+eigenvalues_fp <- "../results/combined.eigenval"
+eigenvectors_fp <- "../results/combined.eigenvec"
 population_fp <- paste("../data/ftp.1000genomes.ebi.ac.uk/all-1000g-phase3-chr",
 "all-mac5-v2.population", sep="")
 super_population_fp <- paste("../data/ftp.1000genomes.ebi.ac.uk/all-1000g-phas",
@@ -85,6 +85,9 @@ test_datset_eigenvectors %>%
   select(FID, IID) %>% 
   write_delim("GBR-like.keep")
 
+sprintf("%d individuals with ancestry similar to the GBR reference genomes", 
+        nrow(test_datset_eigenvectors))
+
 merged <- merge(eigenvectors, population_codes, by=c("FID", "IID"), all = T) %>% 
   merge(super_population_codes, by=c("FID", "IID"), all = T) %>%
   replace(., is.na(.), "test") %>% 
@@ -101,7 +104,7 @@ all_ancestry <- merged %>% filter(POP != "test")
 all_test <- merged %>% filter(POP == "test")
 # GBR-like test
 GBR_like_test <- test_datset_eigenvectors
-
+nrow(GBR_like_test)
 all_sup_pops <- all_ancestry %>% 
   select(SUPPOP) %>% 
   distinct() %>% 
@@ -159,7 +162,6 @@ GenerateAncestryPlot <- function(x, y){
  return(plt)
  }
 
-
 # Generate plots
 pc1_vs_pc2 <- GenerateAncestryPlot("PC1", "PC2")
 pc2_vs_pc3 <- GenerateAncestryPlot("PC2", "PC3")
@@ -171,5 +173,62 @@ ggsave(file = "pc2_vs_pc3.png", plot = pc2_vs_pc3, width=12, height=8)
 ggsave(file = "pc1_vs_pc3.png", plot = pc1_vs_pc3, width=12, height=8)
 ########## MODULE 5 END ##########
 
-# <<<< MODULE 6 >>>
-# Keep intersect of GBR-like with identified as female
+########## MODULE 6 START ##########
+
+test_females <- read.table("../results/met583-test-female.keep",
+                           header = TRUE) %>%
+  as_tibble()
+
+GBR_like_females <- merge(test_females, GBR_like_test,
+                          by=c("FID", "IID"), 
+                          all = FALSE)
+
+sprintf("%d females with ancestry similar to the GBR reference genomes", 
+        nrow(GBR_like_females))
+
+GBR_like_females %>% 
+  select(FID, IID) %>% 
+  write_delim("GBR-like-females.keep", delim = "\t")
+
+########## MODULE 6 END ##########
+
+
+
+########## ADDITIONAL ANALYSIS FOR REPORT START ##########
+
+# EUR ONLY PLOT
+eur_ancestry <- all_ancestry %>% filter(SUPPOP=="EUR")
+pops <- eur_ancestry %>% select(POP) %>% distinct() %>% as_vector()
+num_pops <- length(pops)
+color_vector <- rev(brewer.pal(n=8, name = "Dark2"))[1:num_pops]
+shapes_vector <- rep(c(21), num_pops)
+GenerateEurOnlyAncestryPlot <- function(x, y){
+  plt <- ggplot()+ 
+    geom_point(data=eur_ancestry,
+               color="black",
+               size=3,
+               aes_string(x=x, y=y, fill="POP", shape="POP"))+
+    scale_fill_manual(values=color_vector, breaks = pops) +
+    scale_shape_manual(values= shapes_vector) + 
+    theme(
+      plot.background = element_rect(fill = "white"),
+      panel.background = element_rect(fill = "white"),
+      legend.title = element_blank())
+  return(plt)
+  }
+
+
+pc1_vs_pc2_eur_only <- GenerateEurOnlyAncestryPlot("PC2", "PC1")
+pc2_vs_pc3_eur_only <- GenerateEurOnlyAncestryPlot("PC2", "PC3")
+pc1_vs_pc3_eur_only <- GenerateEurOnlyAncestryPlot("PC1", "PC3")
+
+# Save plots
+ggsave(file = "pc1_vs_pc2_eur_only.png", plot = pc1_vs_pc2_eur_only, width=12,
+       height=8)
+ggsave(file = "pc2_vs_pc3_eur_only.png", plot = pc2_vs_pc3_eur_only, width=12,
+       height=8)
+ggsave(file = "pc1_vs_pc3_eur_only.png", plot = pc1_vs_pc3_eur_only, width=12,
+       height=8)
+
+super_population_codes %>%group_by(SUPPOP) %>% summarize(count=n())
+########## ADDITIONAL ANALYSIS FOR REPORT END ##########
